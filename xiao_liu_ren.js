@@ -1,5 +1,5 @@
 /**
- * 小六壬預測系統 (Xiao Liu Ren Divination)
+ * 小六壬預測系統 (Xiao Liu Ren Divination) - v1.1.0
  * Node.js 版本
  */
 
@@ -24,8 +24,23 @@ const GRID = {
          尋物: "有貴人幫忙找回", 辦事求職: "紫微降臨，求人辦事", 感情人際: "有長輩撮合", 疾病身體: "有福報" }
 };
 
+// 建立 name -> GRID 的映射以提高查找效率
+const GRID_BY_NAME = Object.values(GRID).reduce((acc, item) => {
+    acc[item.name] = item;
+    return acc;
+}, {});
+
 const NINE_GRID = ["留連", "大安", "桃花", "速喜", "空亡", "小吉", "病符", "赤口", "天德"];
 const BASE_SIX = ["大安", "留連", "速喜", "赤口", "小吉", "空亡"];
+
+/**
+ * 驗證數字是否在有效範圍內
+ */
+function validateNumber(n, name, min = 1, max = 9) {
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < min || n > max) {
+        throw new Error(`${name} 必須是 ${min}-${max} 的整數`);
+    }
+}
 
 /**
  * 小六壬占卜類
@@ -39,6 +54,11 @@ class XiaoLiuRen {
      * @returns {object} 占卜結果
      */
     divine(n1, n2, n3) {
+        // 輸入驗證
+        validateNumber(n1, 'n1');
+        validateNumber(n2, 'n2');
+        validateNumber(n3, 'n3');
+
         // Step 1: 起點
         const startIdx = n1 - 1;
         const start = NINE_GRID[startIdx];
@@ -56,12 +76,17 @@ class XiaoLiuRen {
 
     /**
      * 時間起卜法
-     * @param {number} month - 農曆月
-     * @param {number} day - 農曆日
-     * @param {number} hour - 農曆時
+     * @param {number} month - 農曆月 (1-12)
+     * @param {number} day - 農曆日 (1-30)
+     * @param {number} hour - 農曆時 (1-12)
      * @returns {object} 占卜結果
      */
     divineByTime(month, day, hour) {
+        // 輸入驗證
+        validateNumber(month, 'month', 1, 12);
+        validateNumber(day, 'day', 1, 30);
+        validateNumber(hour, 'hour', 1, 12);
+
         const idx = (month + day + hour - 2) % 6;
         const result = BASE_SIX[idx];
         return this._buildResult(result, `月=${month}, 日=${day}, 時=${hour}`);
@@ -73,11 +98,14 @@ class XiaoLiuRen {
      * @returns {object} 方位資訊
      */
     getPosition(hexagram) {
-        const info = Object.values(GRID).find(g => g.name === hexagram) || {};
+        const info = GRID_BY_NAME[hexagram];
+        if (!info) {
+            return { error: "找不到該卦" };
+        }
         return {
             卦名: hexagram,
-            方位: info.方位 || "",
-            說明: info.尋物 || ""
+            方位: info.方位,
+            說明: info.尋物
         };
     }
 
@@ -93,7 +121,7 @@ class XiaoLiuRen {
     }
 
     _buildResult(result, inputStr, start = null, step2 = null) {
-        const info = Object.values(GRID).find(g => g.name === result) || {};
+        const info = GRID_BY_NAME[result] || {};
 
         const response = {
             方法: start ? "三數起卦" : "時間起卜",
